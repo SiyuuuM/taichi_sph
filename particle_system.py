@@ -15,7 +15,7 @@ class ParticleSystem:
         self.material_boundary = 0
         self.material_fluid = 1
 
-        self.particle_radius = 0.1  # particle radius
+        self.particle_radius = 0.05  # particle radius
         self.particle_diameter = 2 * self.particle_radius
         self.support_radius = self.particle_radius * 4.0  # support radius
         self.m_V = np.pi * self.particle_radius  ** self.dim
