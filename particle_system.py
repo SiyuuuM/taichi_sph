@@ -15,10 +15,10 @@ class ParticleSystem:
         self.material_boundary = 0
         self.material_fluid = 1
 
-        self.particle_radius = 0.05  # particle radius
+        self.particle_radius = 0.1  # particle radius
         self.particle_diameter = 2 * self.particle_radius
         self.support_radius = self.particle_radius * 4.0  # support radius
-        self.m_V = 0.8 * self.particle_diameter ** self.dim
+        self.m_V = np.pi * self.particle_radius  ** self.dim
         self.particle_max_num = 2 ** 15
         self.particle_max_num_per_cell = 100
         self.particle_max_num_neighbor = 100
@@ -66,12 +66,34 @@ class ParticleSystem:
 
     @ti.kernel
     def add_particles(self, new_particles_num: int,
-                      new_particles_positions: ti.ext_arr(),
-                      new_particles_velocity: ti.ext_arr(),
-                      new_particle_density: ti.ext_arr(),
-                      new_particle_pressure: ti.ext_arr(),
-                      new_particles_material: ti.ext_arr(),
-                      new_particles_color: ti.ext_arr()):
+                      new_particles_positions: ti.types.ndarray(),
+                      new_particles_velocity: ti.types.ndarray(),
+                      new_particle_density: ti.types.ndarray(),
+                      new_particle_pressure: ti.types.ndarray(),
+                      new_particles_material: ti.types.ndarray(),
+                      new_particles_color: ti.types.ndarray()):
+        for p in range(self.particle_num[None], self.particle_num[None] + new_particles_num):
+            v = ti.Vector.zero(float, self.dim)
+            x = ti.Vector.zero(float, self.dim)
+            for d in ti.static(range(self.dim)): #TODO: 啥东西
+                v[d] = new_particles_velocity[p - self.particle_num[None], d]
+                x[d] = new_particles_positions[p - self.particle_num[None], d]
+            self.add_particle(p, x, v,
+                              new_particle_density[p - self.particle_num[None]],
+                              new_particle_pressure[p - self.particle_num[None]],
+                              new_particles_material[p - self.particle_num[None]],
+                              new_particles_color[p - self.particle_num[None]])
+        self.particle_num[None] += new_particles_num
+
+    @ti.kernel
+    def add_particles_water(self, new_particles_num: int,
+                      new_particles_positions: ti.types.ndarray(),
+                      new_particles_velocity: ti.types.ndarray(),
+                      new_particle_density: ti.types.ndarray(),
+                      new_particle_pressure: ti.types.ndarray(),
+                      new_particles_material: ti.types.ndarray(),
+                      new_particles_color: ti.types.ndarray(),
+                      new_particles_ground: ti.types.ndarray()):
         for p in range(self.particle_num[None], self.particle_num[None] + new_particles_num):
             v = ti.Vector.zero(float, self.dim)
             x = ti.Vector.zero(float, self.dim)
@@ -98,7 +120,7 @@ class ParticleSystem:
         return flag
 
     @ti.kernel
-    def allocate_particles_to_grid(self):
+    def allocate_particles_to_grid(self):  # 搭在网格里，之后方便查找
         for p in range(self.particle_num[None]):
             cell = self.pos_to_index(self.x[p])
             offset = self.grid_particles_num[cell].atomic_add(1)
@@ -133,13 +155,13 @@ class ParticleSystem:
         self.search_neighbors()
 
     @ti.kernel
-    def copy_to_numpy_nd(self, np_arr: ti.ext_arr(), src_arr: ti.template()):
+    def copy_to_numpy_nd(self, np_arr: ti.types.ndarray(), src_arr: ti.template()):
         for i in range(self.particle_num[None]):
             for j in ti.static(range(self.dim)):
                 np_arr[i, j] = src_arr[i][j]
 
     @ti.kernel
-    def copy_to_numpy(self, np_arr: ti.ext_arr(), src_arr: ti.template()):
+    def copy_to_numpy(self, np_arr: ti.types.ndarray(), src_arr: ti.template()):
         for i in range(self.particle_num[None]):
             np_arr[i] = src_arr[i]
 
@@ -188,6 +210,59 @@ class ParticleSystem:
                                  dtype=np.float32)
         new_positions = new_positions.reshape(-1,
                                               reduce(lambda x, y: x * y, list(new_positions.shape[1:]))).transpose()
+        print("new position shape ", new_positions.shape)
+        if velocity is None:
+            velocity = np.full_like(new_positions, 0)
+        else:
+            velocity = np.array([velocity for _ in range(num_new_particles)], dtype=np.float32)
+
+        material = np.full_like(np.zeros(num_new_particles), material)
+        color = np.full_like(np.zeros(num_new_particles), color)
+        density = np.full_like(np.zeros(num_new_particles), density if density is not None else 1000.)
+        pressure = np.full_like(np.zeros(num_new_particles), pressure if pressure is not None else 0.)
+        self.add_particles(num_new_particles, new_positions, velocity, density, pressure, material, color)
+
+
+
+    def add_circle(self,
+                 circle_heart,
+                 radius,
+                 material,
+                 color=0xFFFFFF,
+                 density=None,
+                 pressure=None,
+                 velocity=None):
+
+        radius_list = np.arange(radius, 0, -self.particle_radius)
+        result_list_x = []
+        result_list_y = []
+        for n in range(len(radius_list)):
+            theta_list = np.linspace(0, 2 * np.pi, int(2 * np.pi * radius_list[n] / self.particle_radius))
+            res_x = circle_heart[0] + radius_list[n] * np.cos(theta_list)
+            res_x = np.delete(res_x, -1)
+            for _ in range(len(res_x)):
+                result_list_x.append(res_x[_])
+            res_y = circle_heart[1] + radius_list[n] * np.sin(theta_list)
+            res_y = np.delete(res_y, -1)
+            for _ in range(len(res_x)):
+                result_list_y.append(res_y[_])
+
+        result_list = [result_list_x, result_list_y]
+
+        # num_new_particles = reduce(lambda x, y: x * y,
+        #                            [len(n) for n in result_list])
+        num_new_particles = len(result_list_x)
+
+        print(num_new_particles)
+        assert self.particle_num[
+                   None] + num_new_particles <= self.particle_max_num
+        new_positions = []
+        for _ in range(len(result_list_x)):
+            new_positions.append([result_list[0][_], result_list[1][_]])
+        # new_positions = np.unique(np.array(new_positions),axis=0)
+        new_positions = np.array(new_positions)
+        print(new_positions)
+
         print("new position shape ", new_positions.shape)
         if velocity is None:
             velocity = np.full_like(new_positions, 0)

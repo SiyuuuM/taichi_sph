@@ -53,11 +53,13 @@ class WCSPHSolver(SPHBase):
                 p_j = self.ps.particle_neighbors[p_i, j]
                 x_j = self.ps.x[p_j]
                 d_v += self.viscosity_force(p_i, p_j, x_i - x_j)
+            d_v += self.magnet_force()
             self.d_velocity[p_i] = d_v
+            print(d_v)
 
     @ti.kernel
     def advect(self):
-        # Symplectic Euler
+        # Symplectic Euler 更新v 和 x
         for p_i in range(self.ps.particle_num[None]):
             if self.ps.material[p_i] == self.ps.material_fluid:
                 self.ps.v[p_i] += self.dt[None] * self.d_velocity[p_i]

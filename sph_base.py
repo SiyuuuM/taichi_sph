@@ -7,8 +7,8 @@ class SPHBase:
     def __init__(self, particle_system):
         self.ps = particle_system
         self.g = -9.80  # Gravity
-        self.viscosity = 0.05  # viscosity
-        self.density_0 = 1000.0  # reference density
+        self.viscosity = 0.001  # viscosity
+        self.density_0 = 997.0  # reference density
         self.mass = self.ps.m_V * self.density_0
         self.dt = ti.field(float, shape=())
         self.dt[None] = 2e-4
@@ -62,13 +62,19 @@ class SPHBase:
 
     @ti.func
     def viscosity_force(self, p_i, p_j, r):
-        # Compute the viscosity force contribution
+        # Compute the viscosity force contribution 对公式的翻译，速度场的laplace项 再乘以 viscosity的系数
         v_xy = (self.ps.v[p_i] -
                 self.ps.v[p_j]).dot(r)
         res = 2 * (self.ps.dim + 2) * self.viscosity * (self.mass / (self.ps.density[p_j])) * v_xy / (
             r.norm()**2 + 0.01 * self.ps.support_radius**2) * self.cubic_kernel_derivative(
                 r)
         return res
+
+    @ti.func
+    def magnet_force(self):
+
+        return 0
+
 
     @ti.func
     def pressure_force(self, p_i, p_j, r):
@@ -83,9 +89,9 @@ class SPHBase:
 
     @ti.func
     def simulate_collisions(self, p_i, vec, d):
-        # Collision factor, assume roughly (1-c_f)*velocity loss after collision
+        # Collision factor, assume roughly (1-c_f)*velocity loss after collision 先判断位置，再采取办法。
         c_f = 0.3
-        self.ps.x[p_i] += vec * d
+        self.ps.x[p_i] += vec * d  # d代表粒子到边界的距离
         self.ps.v[p_i] -= (
             1.0 + c_f) * self.ps.v[p_i].dot(vec) * vec
 
@@ -112,7 +118,7 @@ class SPHBase:
                             p_i, ti.Vector([0.0, 1.0]),
                            self.ps.padding - pos[1])
 
-    def step(self):
+    def step(self):  # 执行每一步仿真的步骤
         self.ps.initialize_particle_system()
         self.substep()
         self.enforce_boundary()
