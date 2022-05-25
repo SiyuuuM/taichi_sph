@@ -62,30 +62,25 @@ class SPHBase:
 
     @ti.func
     def viscosity_force(self, p_i, p_j, r):
-        # Compute the viscosity force contribution 对公式的翻译，速度场的laplace项 再乘以 viscosity的系数
+        # Compute the viscosity force contribution
         v_xy = (self.ps.v[p_i] -
                 self.ps.v[p_j]).dot(r)
         res = 2 * (self.ps.dim + 2) * self.viscosity * (self.mass / (self.ps.density[p_j])) * v_xy / (
             r.norm()**2 + 0.01 * self.ps.support_radius**2) * self.cubic_kernel_derivative(
                 r)
         return res
+#对公式的翻译，速度场的laplace项 再乘以 viscosity的系数
 
-    @ti.func
-    def magnet_force(self):
-
-        return 0
-
-
-    @ti.func
-    def pressure_force(self, p_i, p_j, r):
-        # Compute the pressure force contribution, Symmetric Formula
-        res = -self.density_0 * self.ps.m_V * (self.ps.pressure[p_i] / self.ps.density[p_i] ** 2
-              + self.ps.pressure[p_j] / self.ps.density[p_j] ** 2) \
-              * self.cubic_kernel_derivative(r)
-        return res
-
-    def substep(self):
-        pass
+    # @ti.func
+    # def pressure_force(self, p_i, p_j, r):
+    #     # Compute the pressure force contribution, Symmetric Formula
+    #     res = -self.density_0 * self.ps.m_V * (self.ps.pressure[p_i] / self.ps.density[p_i] ** 2
+    #           + self.ps.pressure[p_j] / self.ps.density[p_j] ** 2) \
+    #           * self.cubic_kernel_derivative(r)
+    #     return res
+    #
+    # def substep(self):
+    #     pass
 
     @ti.func
     def simulate_collisions(self, p_i, vec, d):
@@ -94,6 +89,7 @@ class SPHBase:
         self.ps.x[p_i] += vec * d  # d代表粒子到边界的距离
         self.ps.v[p_i] -= (
             1.0 + c_f) * self.ps.v[p_i].dot(vec) * vec
+        # 有一个向外的力，先投影到法线向量上再取负号，即弹回来的速度，并且加一个系数模拟速度回来的时候剩多少；
 
     @ti.kernel
     def enforce_boundary(self):
@@ -118,7 +114,9 @@ class SPHBase:
                             p_i, ti.Vector([0.0, 1.0]),
                            self.ps.padding - pos[1])
 
+# boundary condition 没有考虑粒子，即速度在碰到边界后消失了，所以在画布中的最底层的粒子会粘在底部不动。
+
     def step(self):  # 执行每一步仿真的步骤
-        self.ps.initialize_particle_system()
+        self.ps.initialize_particle_system()  # search neighbours
         self.substep()
         self.enforce_boundary()

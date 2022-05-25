@@ -23,22 +23,23 @@ class WCSPHSolver(SPHBase):
                 self.ps.density[p_i] += self.ps.m_V * self.cubic_kernel((x_i - x_j).norm())
             self.ps.density[p_i] *= self.density_0
 
-    @ti.kernel
-    def compute_pressure_forces(self):
-        for p_i in range(self.ps.particle_num[None]):
-            self.ps.density[p_i] = ti.max(self.ps.density[p_i], self.density_0)
-            self.ps.pressure[p_i] = self.stiffness * (ti.pow(self.ps.density[p_i] / self.density_0, self.exponent) - 1.0)
-        for p_i in range(self.ps.particle_num[None]):
-            if self.ps.material[p_i] != self.ps.material_fluid:
-                continue
-            x_i = self.ps.x[p_i]
-            d_v = ti.Vector([0.0 for _ in range(self.ps.dim)])
-            for j in range(self.ps.particle_neighbors_num[p_i]):
-                p_j = self.ps.particle_neighbors[p_i, j]
-                x_j = self.ps.x[p_j]
-                # Compute Pressure force contribution
-                d_v += self.pressure_force(p_i, p_j, x_i-x_j)
-            self.d_velocity[p_i] += d_v
+    # @ti.kernel
+    # def compute_pressure_forces(self):
+    #     for p_i in range(self.ps.particle_num[None]):
+    #         self.ps.density[p_i] = ti.max(self.ps.density[p_i], self.density_0)
+    #         self.ps.pressure[p_i] = self.stiffness * (
+    #                     ti.pow(self.ps.density[p_i] / self.density_0, self.exponent) - 1.0)
+    #     for p_i in range(self.ps.particle_num[None]):
+    #         if self.ps.material[p_i] != self.ps.material_fluid:
+    #             continue
+    #         x_i = self.ps.x[p_i]
+    #         d_v = ti.Vector([0.0 for _ in range(self.ps.dim)])
+    #         for j in range(self.ps.particle_neighbors_num[p_i]):
+    #             p_j = self.ps.particle_neighbors[p_i, j]
+    #             x_j = self.ps.x[p_j]
+    #             # Compute Pressure force contribution
+    #             d_v += self.pressure_force(p_i, p_j, x_i - x_j)
+    #         self.d_velocity[p_i] += d_v
 
     @ti.kernel
     def compute_non_pressure_forces(self):
@@ -53,7 +54,6 @@ class WCSPHSolver(SPHBase):
                 p_j = self.ps.particle_neighbors[p_i, j]
                 x_j = self.ps.x[p_j]
                 d_v += self.viscosity_force(p_i, p_j, x_i - x_j)
-            d_v += self.magnet_force()
             self.d_velocity[p_i] = d_v
             print(d_v)
 
@@ -68,5 +68,5 @@ class WCSPHSolver(SPHBase):
     def substep(self):
         self.compute_densities()
         self.compute_non_pressure_forces()
-        self.compute_pressure_forces()
+        # self.compute_pressure_forces()
         self.advect()
