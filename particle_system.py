@@ -11,6 +11,7 @@ class ParticleSystem:
         assert self.dim > 1
         self.screen_to_world_ratio = 50
         self.bound = np.array(res) / self.screen_to_world_ratio
+
         # Material
         self.material_boundary = 0
         self.material_fluid = 1
@@ -218,6 +219,43 @@ class ParticleSystem:
 
         material = np.full_like(np.zeros(num_new_particles), material)
         color = np.full_like(np.zeros(num_new_particles), color)
+        density = np.full_like(np.zeros(num_new_particles), density if density is not None else 1000.)
+        pressure = np.full_like(np.zeros(num_new_particles), pressure if pressure is not None else 0.)
+        self.add_particles(num_new_particles, new_positions, velocity, density, pressure, material, color)
+
+    def add_grond(self,
+                 lower_corner,
+                 cube_size,
+                 material,
+                 color=0x00000,
+                 density=None,
+                 pressure=None,
+                 velocity=None):
+
+        num_dim = []
+        for i in range(self.dim):
+            num_dim.append(
+                np.arange(lower_corner[i], lower_corner[i] + cube_size[i],
+                          self.particle_radius))
+        num_new_particles = reduce(lambda x, y: x * y,
+                                   [len(n) for n in num_dim])
+        assert self.particle_num[
+                   None] + num_new_particles <= self.particle_max_num
+
+        new_positions = np.array(np.meshgrid(*num_dim,
+                                             sparse=False,
+                                             indexing='ij'),
+                                 dtype=np.float32)
+        new_positions = new_positions.reshape(-1,
+                                              reduce(lambda x, y: x * y, list(new_positions.shape[1:]))).transpose()
+        print("new position shape ", new_positions.shape)
+        if velocity is None:
+            velocity = np.full_like(new_positions, 0)
+        else:
+            velocity = np.array([velocity for _ in range(num_new_particles)], dtype=np.float32)
+
+        material = np.full_like(np.zeros(num_new_particles), material)
+        color = np.full_like(np.zeros(num_new_particles), 0x00000)
         density = np.full_like(np.zeros(num_new_particles), density if density is not None else 1000.)
         pressure = np.full_like(np.zeros(num_new_particles), pressure if pressure is not None else 0.)
         self.add_particles(num_new_particles, new_positions, velocity, density, pressure, material, color)
