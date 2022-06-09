@@ -1,5 +1,9 @@
+import math
+
 import taichi as ti
 import numpy as np
+
+
 
 
 @ti.data_oriented
@@ -7,11 +11,13 @@ class SPHBase:
     def __init__(self, particle_system):
         self.ps = particle_system
         self.g = -9.80  # Gravity
-        self.viscosity = 0.001  # viscosity
+        self.viscosity = 0.000001  # viscosity
         self.density_0 = 997.0  # reference density
         self.mass = self.ps.m_V * self.density_0
         self.dt = ti.field(float, shape=())
         self.dt[None] = 2e-4
+        self.surface_tension_coefficient = 72.8
+        self.contact_angle = 60
 
     @ti.func
     def cubic_kernel(self, r_norm):
@@ -69,7 +75,33 @@ class SPHBase:
             r.norm()**2 + 0.01 * self.ps.support_radius**2) * self.cubic_kernel_derivative(
                 r)
         return res
-#对公式的翻译，速度场的laplace项 再乘以 viscosity的系数
+
+    # @ti.func
+    # def pressure_force(self, p_i, p_j, r):
+    #     # Compute the pressure force contribution, Symmetric Formula
+    #     res = -self.density_0 * self.ps.m_V * (self.ps.pressure[p_i] / self.ps.density[p_i] ** 2
+    #                                            + self.ps.pressure[p_j] / self.ps.density[p_j] ** 2) \
+    #           * self.cubic_kernel_derivative(r)
+    #     return res
+    #
+
+
+    # @ti.func
+    # def pressure_force(self):
+    #     res = 4 * math.pi * 0.07 * self.surface_tension_coefficient * self.contact_angle
+    #     return res
+    # # laplace pressure的表达式
+
+
+    # @ti.func
+    # def
+
+
+    # def substep(self):
+    #     pass
+
+
+    #对公式的翻译，速度场的laplace项 再乘以 viscosity的系数
 
     # @ti.func
     # def pressure_force(self, p_i, p_j, r):
@@ -80,7 +112,7 @@ class SPHBase:
     #     return res
     #
     # def substep(self):
-    #     pass
+    #     p
 
     @ti.func
     def simulate_collisions(self, p_i, vec, d):

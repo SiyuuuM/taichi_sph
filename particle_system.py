@@ -16,10 +16,10 @@ class ParticleSystem:
         self.material_boundary = 0
         self.material_fluid = 1
 
-        self.particle_radius = 0.05  # particle radius
+        self.particle_radius = 0.07  # particle radius
         self.particle_diameter = 2 * self.particle_radius
         self.support_radius = self.particle_radius * 4.0  # support radius
-        self.m_V = np.pi * self.particle_radius  ** self.dim
+        self.m_V = np.pi * self.particle_radius ** self.dim
         self.particle_max_num = 2 ** 15
         self.particle_max_num_per_cell = 100
         self.particle_max_num_neighbor = 100
@@ -55,6 +55,12 @@ class ParticleSystem:
         cell_index = ti.k if self.dim == 2 else ti.l
         cell_node = grid_node.dense(cell_index, self.particle_max_num_per_cell)
         cell_node.place(self.grid_particles)
+
+        # Line = Line(np.array([0, 3.6,0]), np.array([0, 2, 0]), color='r')
+
+
+
+
 
     @ti.func
     def add_particle(self, p, x, v, density, pressure, material, color):

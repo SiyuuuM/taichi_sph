@@ -1,3 +1,4 @@
+import self as self
 import taichi as ti
 from sph_base import SPHBase
 
@@ -7,6 +8,7 @@ class WCSPHSolver(SPHBase):
         # Pressure state function parameters(WCSPH)
         self.exponent = 7.0
         self.stiffness = 50.0
+
 
         self.d_velocity = ti.Vector.field(self.ps.dim, dtype=float)
         particle_node = ti.root.dense(ti.i, self.ps.particle_max_num)
@@ -42,6 +44,24 @@ class WCSPHSolver(SPHBase):
     #         self.d_velocity[p_i] += d_v
 
     @ti.kernel
+    def compute_pressure_forces(self):
+        for p_i in range(self.ps.particle_num[None]):
+            self.ps.density[p_i] = ti.max(self.ps.density[p_i], self.density_0)
+            self.ps.pressure[p_i] = self.stiffness * (
+                        ti.pow(self.ps.density[p_i] / self.density_0, self.exponent) - 1.0)
+        # for p_i in range(self.ps.particle_num[None]):
+        #     if self.ps.material[p_i] != self.ps.material_fluid:
+        #         continue
+        #     # x_i = self.ps.x[p_i]
+        #     d_v = ti.Vector([0.0 for _ in range(self.ps.dim)])
+        #     for j in range(self.ps.particle_neighbors_num[p_i]):
+        #         p_j = self.ps.particle_neighbors[p_i, j]
+        #         # x_j = self.ps.x[p_j]
+        #         # Compute Pressure force contribution
+        #         d_v += self.pressure_force(p_i, p_j)
+        #     self.d_velocity[p_i] += d_v
+
+    @ti.kernel
     def compute_non_pressure_forces(self):
         for p_i in range(self.ps.particle_num[None]):
             if self.ps.material[p_i] != self.ps.material_fluid:
@@ -65,8 +85,9 @@ class WCSPHSolver(SPHBase):
                 self.ps.v[p_i] += self.dt[None] * self.d_velocity[p_i]
                 self.ps.x[p_i] += self.dt[None] * self.ps.v[p_i]
 
+
     def substep(self):
         self.compute_densities()
         self.compute_non_pressure_forces()
-        # self.compute_pressure_forces()
+        self.compute_pressure_forces()
         self.advect()
