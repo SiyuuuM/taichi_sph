@@ -11,13 +11,14 @@ class SPHBase:
     def __init__(self, particle_system):
         self.ps = particle_system
         self.g = -9.80  # Gravity
-        self.viscosity = 0.000001  # viscosity
+        self.viscosity = 0.0000000001  # viscosity
         self.density_0 = 997.0  # reference density
         self.mass = self.ps.m_V * self.density_0
         self.dt = ti.field(float, shape=())
         self.dt[None] = 2e-4
         self.surface_tension_coefficient = 72.8
-        self.contact_angle = 60
+        self.intrinsic_contact_angle = 10
+        self.fractional_projected_area = 0.9069    #spherical particles start at f2~0.0931,so f1 =0.9069
 
     @ti.func
     def cubic_kernel(self, r_norm):
@@ -84,23 +85,6 @@ class SPHBase:
     #           * self.cubic_kernel_derivative(r)
     #     return res
     #
-
-
-    # @ti.func
-    # def pressure_force(self):
-    #     res = 4 * math.pi * 0.07 * self.surface_tension_coefficient * self.contact_angle
-    #     return res
-    # # laplace pressure的表达式
-
-
-    # @ti.func
-    # def
-
-
-    # def substep(self):
-    #     pass
-
-
     #对公式的翻译，速度场的laplace项 再乘以 viscosity的系数
 
     # @ti.func
@@ -113,6 +97,31 @@ class SPHBase:
     #
     # def substep(self):
     #     p
+
+
+
+    # @ti.func
+    # def pressure_force(self):
+    #     res = 4 * math.pi * 0.07 * self.surface_tension_coefficient * self.contact_angle
+    #     return res
+    # # laplace pressure的表达式
+
+
+    @ti.func
+    def interfacial_tension(self):
+        res = 0.000364 * (math.cos(self.intrinsic_contact_angle) + 1)
+        return res
+
+    def substep(self):
+        pass
+    # Young's equation 变形
+
+    @ti.func
+    def apparent_contact_angle(self):
+        res = self.fractional_projected_area * (math.cos(self.intrinsic_contact_angle) + 1) - 1
+        return res
+    # Cassie-Baxter model
+
 
     @ti.func
     def simulate_collisions(self, p_i, vec, d):

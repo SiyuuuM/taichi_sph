@@ -3,14 +3,14 @@ import numpy as np
 from particle_system import ParticleSystem
 from wcsph import WCSPHSolver
 
-# ti.init(arch=ti.vulkan,  device_memory_fraction=0.9)
+ti.init(arch=ti.vulkan,  device_memory_fraction=0.9)
 
 # TODO, Important: CUDA_LAUNCH_BLOCKING=1;PYTHONUNBUFFERED=1;TI_USE_UNIFIED_MEMORY=0;TI_ENABLE_CUDA=0
 
 # ti.init(arch=ti.cuda, device_memory_GB=2)
 
 # Use GPU for higher peformance if available
-ti.init(arch=ti.gpu, device_memory_GB=12, packed=True)
+#ti.init(arch=ti.gpu, device_memory_GB=8, packed=True)
 
 
 if __name__ == "__main__":
@@ -42,11 +42,12 @@ if __name__ == "__main__":
     wcsph_solver = WCSPHSolver(ps)
     gui = ti.GUI(background_color=0xFFFFFF)
 
+    print('test1')
     while gui.running:
         for i in range(5):
             wcsph_solver.step()
         particle_info = ps.dump()
         gui.circles(particle_info['position'] * ps.screen_to_world_ratio / 512,
-                    radius=ps.particle_radius / 1.5 * ps.screen_to_world_ratio,
+                    radius=ps.particle_radius / 1 * ps.screen_to_world_ratio,
                     color=particle_info['color'])
         gui.show()

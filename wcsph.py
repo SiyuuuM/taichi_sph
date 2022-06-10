@@ -58,7 +58,7 @@ class WCSPHSolver(SPHBase):
         #         p_j = self.ps.particle_neighbors[p_i, j]
         #         # x_j = self.ps.x[p_j]
         #         # Compute Pressure force contribution
-        #         d_v += self.pressure_force(p_i, p_j)
+        #         d_v += self.interfacial_tension(p_i, p_j)
         #     self.d_velocity[p_i] += d_v
 
     @ti.kernel
